@@ -63,7 +63,7 @@ def create_consumption_database(parent_page_id, meals_database_id):
             "Date": {"date": {}},
             "Meal": {"relation": {"database_id": meals_database_id, "single_property": {}}},
             "Quantity": {"number": {"format": "number"}},
-            # "Calories": {"formula": {"expression": "prop(\"Quantity\") * prop(\"Meal\").at(0).prop(\"Calories\")"}},
+            "Calories": {"formula": {"expression": "prop(\"Quantity\") * prop(\"Meal\").at(0).prop(\"Calories\")"}},
         }
     }
 
