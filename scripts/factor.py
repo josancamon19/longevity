@@ -1,3 +1,5 @@
+import csv
+
 import requests
 
 headers = {
@@ -7,28 +9,16 @@ headers = {
 }
 
 params = {
-    'delivery-option': 'FJ-2-0800-2001',
-    'postcode': '94114',
-    'preference': 'caloriesmart',
     'product-sku': 'FJ-CBT8-18-1-0',
-    'servings': '1',
     'subscription': '6987014',
-    'week': '2024-W43',
-    'include-future-feedback': 'true',
-    'customerPlanId': '14e1a13f-70ec-47bf-82f4-21a7a62f5fbb',
+    'week': '2024-W43',  # W43 -> 15/10-22/10
     'country': 'US',
     'locale': 'en-US',
 }
 
 
 def get_addon_detail(addon_id: str):
-    params = {'country': 'US', 'locale': 'en-US'}
-
-    response = requests.get(
-        f'https://www.factor75.com/gw/recipes/recipes/{addon_id}',
-        params=params,
-        headers=headers,
-    )
+    response = requests.get(f'https://www.factor75.com/gw/recipes/recipes/{addon_id}', headers=headers)
     data = response.json()
     nutrition = data['nutrition']
     calories = protein = carbs = fat = 0
@@ -46,11 +36,8 @@ def get_addon_detail(addon_id: str):
     return calories, protein, carbs, fat
 
 
-def factor_meals_to_csv():
-    response = requests.get('https://www.factor75.com/gw/my-deliveries/menu', params=params, headers=headers)
-    data = response.json()
+def extract_meals_from_response(data, items):
     meals = data['meals']
-    items = []
     for meal in meals:
         quantity = meal.get('selection', {}).get('quantity', 0)
         if not quantity:
@@ -62,7 +49,6 @@ def factor_meals_to_csv():
         carbs = recipe['nutrition']['carbohydrate']
         protein = recipe['nutrition']['protein']
         fat = int((calories - (carbs + protein) * 4) / 9)
-        print(name, quantity, calories, carbs, protein, fat)
         items.append({
             'name': name,
             'quantity': quantity,
@@ -73,6 +59,9 @@ def factor_meals_to_csv():
             'image': image,
             'addon': False,
         })
+
+
+def extract_addons_from_response(data, items):
     for group in data['addOns']['groups']:
         for option in group['addOns']:
             selection = option.get('selection', {})
@@ -83,7 +72,6 @@ def factor_meals_to_csv():
             recipe_id = option['recipe']['id']
             name = recipe['name']
             image = recipe['image']
-            print(recipe_id, name, quantity)
             calories, protein, carbs, fat = get_addon_detail(recipe_id)
             items.append({
                 'name': name,
@@ -95,10 +83,16 @@ def factor_meals_to_csv():
                 'image': image,
                 'addon': True,
             })
-    # store in a csv
-    import csv
 
-    with open('meals2.csv', 'w') as f:
+
+def factor_meals_to_csv():
+    response = requests.get('https://www.factor75.com/gw/my-deliveries/menu', params=params, headers=headers)
+    data = response.json()
+    items = []
+    extract_meals_from_response(data, items)
+    extract_addons_from_response(data, items)
+
+    with open('meals.csv', 'w') as f:
         writer = csv.DictWriter(f, fieldnames=items[0].keys())
         writer.writeheader()
         writer.writerows(items)
